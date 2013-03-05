@@ -89,12 +89,25 @@ angular.module('x',[])
       };
     }
   };
-}]
+}])
 
 
 
+.directive('include',[ 
+                 function() {
+  return {
+    restrict: 'ECA',
+    terminal: true,
+    compile: function(element, attr) {
+      var includeName = attr.name;
+      return function(scope, element) {               
+        scope[includeName]=element;
+      };
+    }
+  };
+}]) ;
 
-);
+
 
 
 
