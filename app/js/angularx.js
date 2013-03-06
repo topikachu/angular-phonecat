@@ -1,42 +1,5 @@
-angular.module('app',['time','x']);
-angular.module('time', [])
-  // Register the 'myCurrentTime' directive factory method.
-  // We inject $timeout and dateFilter service since the factory method is DI.
-  .directive('myCurrentTime', function($timeout, dateFilter) {
-    // return the directive link function. (compile function not needed)
-    return function(scope, element, attrs) {
-      var format,  // date format
-          timeoutId; // timeoutId, so that we can cancel the time updates
- 
-      // used to update the UI
-      function updateTime() {
-        element.text(dateFilter(new Date(), format));
-      }
- 
-      // watch the expression, and update the UI on change.
-      scope.$watch(attrs.myCurrentTime, function(value) {
-        format = value;
-        updateTime();
-      });
- 
-      // schedule update in one second
-      function updateLater() {
-        // save the timeoutId for canceling
-        timeoutId = $timeout(function() {
-          updateTime(); // update DOM
-          updateLater(); // schedule another update
-        }, 1000);
-      }
- 
-      // listen on DOM destroy (removal) event, and cancel the next UI update
-      // to prevent updating time ofter the DOM element was removed.
-      element.bind('$destroy', function() {
-        $timeout.cancel(timeoutId);
-      });
- 
-      updateLater(); // kick off the UI update process.
-    }
-  });
+
+
 
 angular.module('x',[])
 .directive('template',['$http', '$templateCache', '$anchorScroll', '$compile', 
@@ -48,7 +11,7 @@ angular.module('x',[])
       var srcExp = attr.template || attr.src,
           onloadExp = attr.onload || '',
           autoScrollExp = attr.autoscroll;
-
+      var childlink = $compile(element.contents())       
       return function(scope, element) {
         var changeCounter = 0,
             childScope;
@@ -62,7 +25,7 @@ angular.module('x',[])
           element.html('');
         };
 
-        scope.$watch(srcExp, function ngIncludeWatchAction(src) {
+        scope.$watch(srcExp, function templateWatchAction(src) {
           var thisChangeId = ++changeCounter;
 
           if (src) {
@@ -71,15 +34,15 @@ angular.module('x',[])
 
               if (childScope) childScope.$destroy();
               childScope = scope.$new();
-
               element.html(response);
+              
               $compile(element.contents())(childScope);
-
+              childlink(scope)
               if (angular.isDefined(autoScrollExp) && (!autoScrollExp || scope.$eval(autoScrollExp))) {
                 $anchorScroll();
               }
 
-              childScope.$emit('$includeContentLoaded');
+              childScope.$emit('$templateContentLoaded');
               scope.$eval(onloadExp);
             }).error(function() {
               if (thisChangeId === changeCounter) clearContent();
@@ -93,19 +56,38 @@ angular.module('x',[])
 
 
 
-.directive('include',[ 
-                 function() {
+.directive('include',[ '$rootScope',
+                 function($rootScope) {
   return {
     restrict: 'ECA',
     terminal: true,
-    compile: function(element, attr) {
-      var includeName = attr.name;
-      return function(scope, element) {               
-        scope[includeName]=element;
-      };
-    }
+    link: function(scope, element, attr)  {
+      var target = attr.name;      
+      $rootScope[target]=element;
+      }
+    
   };
-}]) ;
+}])
+
+
+.directive('define',[ '$rootScope','$compile', 
+                 function($rootScope,$compile) {
+  return {
+    restrict: 'ECA',
+    terminal: true,
+    compile: function(element, attr){
+      var target=attr.name;
+      var content = element.html();
+    return function(scope, element, attr) {
+        var targetElement=$rootScope[target];
+        targetElement.html(content);
+        var link = $compile(element.contents())(scope);                   
+          
+        
+    }
+  }
+  };
+}])  ;
 
 
 
